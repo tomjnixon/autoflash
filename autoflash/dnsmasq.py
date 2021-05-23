@@ -1,4 +1,5 @@
-import tempfile
+from typing import Optional
+from tempfile import TemporaryDirectory
 import shutil
 from pathlib import Path
 import subprocess
@@ -10,12 +11,12 @@ import getpass
 class Dnsmasq:
     def __init__(self, tftp: dict = {}):
         self.tftp = tftp
-        self.tmpdir = None
+        self.tmpdir: Optional[TemporaryDirectory[str]] = None
         self.dnsmasq = None
         self.logger = logging.getLogger("dnsmasq")
 
     def __enter__(self):
-        self.tmpdir = tempfile.TemporaryDirectory("dnsmasq")
+        self.tmpdir = TemporaryDirectory("dnsmasq")
         pid_file = Path(self.tmpdir.name) / "dnsmasq.pid"
 
         args = ["dnsmasq", "--port=0", f"--pid-file={pid_file}"]

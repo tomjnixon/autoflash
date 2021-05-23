@@ -1,3 +1,4 @@
+from typing import List, Callable
 import importlib
 
 class Device:
@@ -5,7 +6,7 @@ class Device:
         self.architecture = architecture
         self.name = name
 
-        self.steps = []
+        self.steps: List[Callable] = []
 
     def register_step(self, step):
         self.steps.append(step)

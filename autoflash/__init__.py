@@ -1,29 +1,38 @@
+from typing import Optional
 import logging
 import serial
 import serial.threaded
 from serial.tools.miniterm import Miniterm
-import queue
+from queue import Queue, Empty
 import traceback
 import re
 from dataclasses import dataclass
-import iputils
-from dnsmasq import Dnsmasq
+from . import iputils
 import subprocess
 import time
 
 
+class Context:
+    """Identifies a class as being used as a context"""
+
+
 @dataclass
-class Line:
+class SerialData:
     data: bytes
 
 
 @dataclass
-class PartialLine:
-    data: bytes
+class Line(SerialData):
+    pass
+
+
+@dataclass
+class PartialLine(SerialData):
+    pass
 
 
 class SerialProtocol(serial.threaded.Protocol):
-    def __init__(self, logger: logging.Logger, queue: queue.Queue, sep=b"\r\n"):
+    def __init__(self, logger: logging.Logger, queue: Queue[SerialData], sep=b"\r\n"):
         super().__init__()
         self.logger = logger
         self.queue = queue
@@ -41,7 +50,7 @@ class SerialProtocol(serial.threaded.Protocol):
         parts = self.buffer.split(self.sep)
         for part in parts[:-1]:
             self.queue.put(Line(part))
-            self.logger.info(f"rx: {part}")
+            self.logger.info(f"rx: {part!r}")
 
         if parts[-1]:
             self.queue.put(PartialLine(parts[-1]))
@@ -54,12 +63,13 @@ class SerialProtocol(serial.threaded.Protocol):
         self.logger.info("connection closed")
 
 
-class Serial:
-    def __init__(self, port, baud):
-        self.serial = serial.Serial(port, baud)
+class Serial(Context):
+    def __init__(self, port: Optional[str] = None):
+        assert port is not None
+        self.serial = serial.Serial(port, 115200)
         assert hasattr(self.serial, "cancel_read")
         self.logger = logging.getLogger("serial")
-        self.queue = queue.Queue()
+        self.queue: Queue[SerialData] = Queue()
 
         def make_protocol():
             return SerialProtocol(self.logger, self.queue)
@@ -73,11 +83,15 @@ class Serial:
     def __exit__(self, *exc):
         self.protocol.stop()
 
+    def setup(self, baudrate: int):
+        if self.serial.baudrate != baudrate:
+            self.serial.baudrate = baudrate
+
     def clear(self):
         while True:
             try:
                 self.queue.get_nowait()
-            except queue.Empty:
+            except Empty:
                 break
 
     def wait_for(self, regex):
@@ -121,9 +135,11 @@ class Serial:
         miniterm.close()
 
 
-class Network:
-    def __init__(self, ifname):
-        self.ifname = ifname
+class Network(Context):
+    # XXX: make non-optional?
+    def __init__(self, ifname: Optional[str] = None):
+        assert ifname is not None
+        self.ifname: str = ifname
 
     def __enter__(self):
         return self

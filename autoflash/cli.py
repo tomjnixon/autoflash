@@ -16,10 +16,7 @@ import inspect
 from dataclasses import dataclass
 import argparse
 from argparse import ArgumentParser, Namespace
-
-
-class Context:
-    """Identifies a class as being used as a context"""
+from . import Context
 
 
 @dataclass

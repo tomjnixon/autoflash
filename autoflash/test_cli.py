@@ -1,4 +1,4 @@
-from cli2 import Step, Runner, Context, ContextInfo
+from .cli import Step, Runner, Context, ContextInfo
 from typing import Optional
 
 
