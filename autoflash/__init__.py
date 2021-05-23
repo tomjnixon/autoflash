@@ -8,6 +8,8 @@ import re
 from dataclasses import dataclass
 import iputils
 from dnsmasq import Dnsmasq
+import subprocess
+import time
 
 
 @dataclass
@@ -57,7 +59,6 @@ class Serial:
         self.serial = serial.Serial(port, baud)
         assert hasattr(self.serial, "cancel_read")
         self.logger = logging.getLogger("serial")
-        self.logger.info("here")
         self.queue = queue.Queue()
 
         def make_protocol():
@@ -100,6 +101,7 @@ class Serial:
         self.serial.write(data)
 
     def miniterm(self, **kwargs):
+        print("entering miniterm; press crtl-] to exit")
         self.protocol.stop()
 
         miniterm = Miniterm(self.serial, **kwargs)
@@ -133,22 +135,49 @@ class Network:
         iputils.setup_ipv4(self.ifname, ip, prefixlen)
 
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    with Serial("/dev/ttyUSB0", 115200) as serial:
-        serial.wait_for_partial(b"Hit any key to stop autoboot:")
-        serial.write(b"a")
-        serial.wait_for_partial(b"VR9 #")
+def sha256(fname):
+    import hashlib
 
-        iputils.setup_ipv4("enp0s25", "192.168.1.2")
+    h = hashlib.sha256()
+    with open(fname, "rb") as f:
+        while block := f.read(1000000):
+            h.update(block)
+    return h.hexdigest()
 
-        initramfs = "/tmp/openwrt-lantiq-xrx200-bt_homehub-v5a-initramfs-kernel.bin"
-        with Dnsmasq(tftp={"initramfs.bin": initramfs}) as dnsmasq:
-            serial.write(
-                b"setenv ipaddr 192.168.1.1;"
-                b"setenv serverip 192.168.1.2;"
-                b"tftpboot 0x81000000 initramfs.bin;"
-                b"bootm 0x81000000\n"
-            )
-            serial.wait_for(b"done$")
-        serial.miniterm(eol="lf")
+
+def wait_for_ssh(address):
+    def can_connect():
+        import socket
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(1)
+            try:
+                s.connect((address, 22))
+            except socket.timeout:
+                logging.info(f"waiting for {address}:22")
+                return False
+            except OSError:
+                logging.info(f"error connecting to {address}:22; waiting...")
+                return False
+        return True
+
+    while not can_connect():
+        time.sleep(1)
+
+
+def do_sysupgrade_ssh(address, sysupgrade_fname, options="-v"):
+    ssh_args = (
+        "-Fnone -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no".split()
+    )
+
+    checksum = sha256(sysupgrade_fname)
+
+    fname = "/tmp/sysupgrade.bin"
+    commands = [
+        f"cat > {fname}",
+        f"echo '{checksum}  {fname}' | sha256sum -c > /dev/null",
+        f"sysupgrade {options} {fname}",
+    ]
+    command = " && ".join(commands)
+    with open(sysupgrade_fname, "rb") as f:
+        subprocess.check_call(["ssh", *ssh_args, f"root@{address}", command], stdin=f)
