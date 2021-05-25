@@ -64,9 +64,9 @@ class SerialProtocol(serial.threaded.Protocol):
 
 
 class Serial(Context):
-    def __init__(self, port: Optional[str] = None):
-        assert port is not None
-        self.serial = serial.Serial(port, 115200)
+    def __init__(self, serial_port: Optional[str] = None):
+        assert serial_port is not None
+        self.serial = serial.Serial(serial_port, 115200)
         assert hasattr(self.serial, "cancel_read")
         self.logger = logging.getLogger("serial")
         self.queue: Queue[SerialData] = Queue()
