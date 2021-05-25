@@ -2,13 +2,11 @@ from typing import (
     List,
     Dict,
     Callable,
-    Set,
     Type,
     Any,
     Tuple,
     Union,
     Container,
-    Iterable,
     Optional,
 )
 import typing
@@ -17,6 +15,7 @@ from dataclasses import dataclass
 import argparse
 from argparse import ArgumentParser, Namespace
 from . import Context
+from .registry import DeviceRegistry
 
 
 @dataclass
@@ -149,18 +148,34 @@ class ContextInfo:
 
 
 class Runner:
-    def __init__(self, context_types: List[ContextInfo], steps: Iterable[Step]):
-        self.context_types = context_types
-        self.steps = {step.name: step for step in steps}
+    def __init__(self, registry: DeviceRegistry):
+        self.steps = {
+            (device.architecture, device.name): {
+                step.__name__: Step(step.__name__, step) for step in device.steps
+            }
+            for device in registry.devices
+        }
 
-    def parse_step_args(self, step_args: List[str]):
+        context_types = set(
+            arg.annotation
+            for device_steps in self.steps.values()
+            for step in device_steps.values()
+            for arg in step.context_args
+        )
+
+        self.context_types = [
+            ContextInfo(context_type.__name__, context_type)
+            for context_type in context_types
+        ]
+
+    def parse_step_args(self, steps, step_args: List[str]):
         steps_and_args = []
 
         while step_args:
             step_name = step_args.pop(0)
-            if step_name not in self.steps:
+            if step_name not in steps:
                 raise Exception(f"expected step name, got {step_name}")
-            step = self.steps[step_name]
+            step = steps[step_name]
 
             step_parser, get_args = step.make_parser()
             step_parser.add_argument(
@@ -188,6 +203,7 @@ class Runner:
 
         context_args = self.add_context_args(main_parser)
 
+        main_parser.add_argument("device")
         main_parser.add_argument(
             "commands", metavar="command [arg ...] ...", nargs="..."
         )
@@ -198,7 +214,10 @@ class Runner:
             ctx.type: get_args(main_args) for ctx, get_args in context_args
         }
 
-        steps_and_args = self.parse_step_args(main_args.commands)
+        # XXX
+        steps = self.steps[tuple(main_args.device.split("."))]
+
+        steps_and_args = self.parse_step_args(steps, main_args.commands)
 
         self.run(steps_and_args, context_args_parsed)
 
@@ -223,3 +242,11 @@ class Runner:
 
         for ctx in contexts.values():
             ctx.__exit__()
+
+
+if __name__ == "__main__":
+    from .devices import registry
+    import sys
+
+    r = Runner(registry)
+    r.parse_and_run(sys.argv[1:])
