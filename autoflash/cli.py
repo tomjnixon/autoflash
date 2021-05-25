@@ -67,12 +67,7 @@ def is_optional(t: Type[Any]) -> bool:
 
 
 def is_optional_t(t: Type[Any], types: Container[Type[Any]]) -> bool:
-    return (
-        typing.get_origin(t) == Union
-        and len(typing.get_args(t)) == 2
-        and typing.get_args(t)[1] is type(None)
-        and typing.get_args(t)[0] in types
-    )
+    return is_optional(t) and typing.get_args(t)[0] in types
 
 
 def handle_arg_base(param: ParameterInfo) -> ArgumentBase:
