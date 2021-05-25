@@ -130,7 +130,7 @@ class Step:
 
     def make_parser(self) -> Tuple[ArgumentParser, Callable[[Namespace], Kwargs]]:
         p = ArgumentParser(
-            prog=self.name, description=getattr(self.func, "__init__", None)
+            prog=self.name, description=getattr(self.func, "__help__", None)
         )
 
         get_args = add_args_to_parser(p, self.option_args)
