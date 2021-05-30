@@ -15,7 +15,8 @@ from dataclasses import dataclass
 import argparse
 from argparse import ArgumentParser, Namespace
 from . import Context
-from .registry import DeviceRegistry
+from .exceptions import UserError
+from .registry import DeviceRegistry, Device
 
 
 @dataclass
@@ -132,6 +133,12 @@ class Step:
         return p, get_args
 
 
+@dataclass
+class CLIDevice:
+    device: Device
+    steps: List[Step]
+
+
 class ContextInfo:
     def __init__(self, name: str, type: Type[Context]):
         self.name = name
@@ -144,17 +151,18 @@ class ContextInfo:
 
 class Runner:
     def __init__(self, registry: DeviceRegistry):
-        self.steps = {
-            (device.architecture, device.name): {
-                step.__name__: Step(step.__name__, step) for step in device.steps
-            }
+        self.devices = {
+            device.name: CLIDevice(
+                device=device,
+                steps=[Step(step_fn.__name__, step_fn) for step_fn in device.steps],
+            )
             for device in registry.devices
         }
 
         context_types = set(
             arg.annotation
-            for device_steps in self.steps.values()
-            for step in device_steps.values()
+            for device in self.devices.values()
+            for step in device.steps
             for arg in step.context_args
         )
 
@@ -163,14 +171,28 @@ class Runner:
             for context_type in context_types
         ]
 
-    def parse_step_args(self, steps, step_args: List[str]):
+    def list_steps(self, device: CLIDevice):
+        print(f"available steps for {device.device.name}:")
+        for step in device.steps:
+            print(f"  {step.name}")
+        sys.exit(0)
+
+    def list_devices(self):
+        for device in self.devices.values():
+            print(device.device.architecture, device.device.name)
+        sys.exit(0)
+
+    def parse_step_args(self, device: CLIDevice, step_args: List[str]):
+        if step_args in ([], ["list"]):
+            return self.list_steps(device)
+
         steps_and_args = []
 
         while step_args:
             step_name = step_args.pop(0)
-            if step_name not in steps:
-                raise Exception(f"expected step name, got {step_name}")
-            step = steps[step_name]
+            if step_name not in device.steps:
+                raise UserError(f"expected step name, got {step_name}")
+            step = device.steps[step_name]
 
             step_parser, get_args = step.make_parser()
             step_parser.add_argument(
@@ -193,12 +215,24 @@ class Runner:
             ctx_with_args.append((ctx_type, get_args))
         return ctx_with_args
 
+    def get_device(self, device_name):
+        if device_name in self.devices:
+            return self.devices[device_name]
+        elif device_name == "list":
+            self.list_devices()
+        else:
+            raise UserError(
+                f"device {device_name} not known; use 'list' to show known devices"
+            )
+
     def parse_and_run(self, args: List[str]):
         main_parser = ArgumentParser()
 
         context_args = self.add_context_args(main_parser)
 
-        main_parser.add_argument("device")
+        main_parser.add_argument(
+            "device", help="device name; use 'list' to show known devices"
+        )
         main_parser.add_argument(
             "commands", metavar="command [arg ...] ...", nargs="..."
         )
@@ -209,10 +243,9 @@ class Runner:
             ctx.type: get_args(main_args) for ctx, get_args in context_args
         }
 
-        # XXX
-        steps = self.steps[tuple(main_args.device.split("."))]
+        device = self.get_device(main_args.device)
 
-        steps_and_args = self.parse_step_args(steps, main_args.commands)
+        steps_and_args = self.parse_step_args(device, main_args.commands)
 
         self.run(steps_and_args, context_args_parsed)
 
@@ -244,4 +277,8 @@ if __name__ == "__main__":
     import sys
 
     r = Runner(registry)
-    r.parse_and_run(sys.argv[1:])
+    try:
+        r.parse_and_run(sys.argv[1:])
+    except UserError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
