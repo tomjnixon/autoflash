@@ -59,6 +59,28 @@ class ArgumentBase:
         return getattr(parsed_args, self.param.name)
 
 
+class BoolArg(ArgumentBase):
+    def add_to_parser(self, parser: argparse._ActionsContainer, **kwargs):
+        assert self.param.default is not inspect.Parameter.empty
+        assert isinstance(self.param.default, bool)
+
+        name = self.param.name.replace("_", "-")
+        if self.param.default:
+            name = f"--no-{name}"
+            action = "store_false"
+        else:
+            name = f"--{name}"
+            action = "store_true"
+
+        parser.add_argument(
+            name,
+            action=action,
+            default=self.param.default,
+            dest=self.param.name,
+            **kwargs,
+        )
+
+
 def is_optional(t: Type[Any]) -> bool:
     return (
         typing.get_origin(t) == Union
@@ -77,6 +99,8 @@ def handle_arg_base(param: ParameterInfo) -> ArgumentBase:
         return ArgumentBase(param)
     elif is_optional_t(param.parameter.annotation, base_types):
         return ArgumentBase(param)
+    elif param.parameter.annotation is bool:
+        return BoolArg(param)
     else:
         assert False
 
