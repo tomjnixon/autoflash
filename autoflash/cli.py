@@ -160,7 +160,7 @@ class Step:
 @dataclass
 class CLIDevice:
     device: Device
-    steps: List[Step]
+    steps: Dict[str, Step]
 
 
 class ContextInfo:
@@ -178,7 +178,10 @@ class Runner:
         self.devices = {
             device.name: CLIDevice(
                 device=device,
-                steps=[Step(step_fn.__name__, step_fn) for step_fn in device.steps],
+                steps={
+                    step_fn.__name__: Step(step_fn.__name__, step_fn)
+                    for step_fn in device.steps
+                },
             )
             for device in registry.devices
         }
@@ -186,7 +189,7 @@ class Runner:
         context_types = set(
             arg.annotation
             for device in self.devices.values()
-            for step in device.steps
+            for step in device.steps.values()
             for arg in step.context_args
         )
 
@@ -197,7 +200,7 @@ class Runner:
 
     def list_steps(self, device: CLIDevice):
         print(f"available steps for {device.device.name}:")
-        for step in device.steps:
+        for step in device.steps.values():
             print(f"  {step.name}")
         sys.exit(0)
 
