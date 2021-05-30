@@ -210,13 +210,17 @@ class Runner:
         sys.exit(0)
 
     def parse_step_args(self, device: CLIDevice, step_args: List[str]):
-        if step_args in ([], ["list"]):
+        if step_args == []:
             return self.list_steps(device)
 
         steps_and_args = []
 
         while step_args:
             step_name = step_args.pop(0)
+
+            if step_name == "list":
+                return self.list_steps(device)
+
             if step_name not in device.steps:
                 raise UserError(f"expected step name, got {step_name}")
             step = device.steps[step_name]
