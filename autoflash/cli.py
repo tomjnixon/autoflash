@@ -302,6 +302,9 @@ class Runner:
 if __name__ == "__main__":
     from .devices import registry
     import sys
+    import logging
+
+    logging.basicConfig(level=logging.DEBUG)
 
     r = Runner(registry)
     try:
