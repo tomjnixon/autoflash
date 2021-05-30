@@ -84,3 +84,13 @@ def ensure_up(ifname, vlan):
     info = get_if_info(ifname, run(["link", "show", ifname]))
     if "UP" not in info["flags"]:
         run(["link", "set", "up", "dev", ifname])
+
+
+def make_netns(name, interfaces):
+    run(["netns", "add", name])
+    for interface in interfaces:
+        run(["link", "set", interface, "netns", name])
+
+
+def del_netns(name):
+    run(["netns", "del", name])
