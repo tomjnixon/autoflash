@@ -1,4 +1,5 @@
 from .cli import Step, Runner, Context, ContextInfo
+from .registry import Device, DeviceRegistry
 from typing import Optional
 
 
@@ -54,18 +55,25 @@ class Serial(Context):
         record_call(Serial.__exit__, self=self)
 
 
+device = Device("testarch", "testdev")
+
+
+@device.register_step
 def boot(serial: Serial, initrd: str):
     record_call(boot, serial=serial, initrd=initrd)
 
 
+@device.register_step
 def flash(sysupgrade: str, sysupgrade_args: str = "-v"):
     record_call(flash, sysupgrade=sysupgrade, sysupgrade_args=sysupgrade_args)
 
 
+registry = DeviceRegistry()
+registry.devices.append(device)
+
+
 def test_runner():
-    steps = [Step("boot", boot), Step("flash", flash)]
-    contexts = [ContextInfo("serial", Serial)]
-    runner = Runner(contexts, steps)
+    runner = Runner(registry)
 
     def check_calls(serial_path=None, sysupgrade_args="-v"):
         [serial_init, serial_enter, boot_call, flash_call, serial_exit] = call_record
@@ -83,13 +91,13 @@ def test_runner():
 
         assert serial_exit == (Serial.__exit__, dict(self=serial))
 
-    args = "boot initrd.bin flash sysupgrade.bin".split()
+    args = "testdev boot initrd.bin flash sysupgrade.bin".split()
 
     call_record.clear()
     runner.parse_and_run(args)
     check_calls()
 
-    args = "--serial-port=/foo boot initrd.bin flash --sysupgrade-args=-w sysupgrade.bin".split()
+    args = "--serial-port=/foo testdev boot initrd.bin flash --sysupgrade-args=-w sysupgrade.bin".split()
 
     call_record.clear()
     runner.parse_and_run(args)
