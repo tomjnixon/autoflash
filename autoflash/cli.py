@@ -14,6 +14,7 @@ import inspect
 from dataclasses import dataclass
 import argparse
 from argparse import ArgumentParser, Namespace
+import sys
 from .exceptions import UserError
 from .registry import Context, DeviceRegistry, Device
 
@@ -302,7 +303,7 @@ class Runner:
             ctx.__exit__()
 
 
-if __name__ == "__main__":
+def main():
     from .devices import registry
     import sys
     import logging
@@ -315,3 +316,7 @@ if __name__ == "__main__":
     except UserError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
