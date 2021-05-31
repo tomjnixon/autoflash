@@ -1,2 +1,2 @@
-from .serial import Serial
-from .network import Network
+from .serial import Serial  # noqa
+from .network import Network  # noqa

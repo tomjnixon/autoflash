@@ -84,7 +84,7 @@ def is_optional(t: Type[Any]) -> bool:
     return (
         typing.get_origin(t) == Union
         and len(typing.get_args(t)) == 2
-        and typing.get_args(t)[1] is type(None)
+        and issubclass(typing.get_args(t)[1], type(None))
     )
 
 

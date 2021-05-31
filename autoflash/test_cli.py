@@ -1,4 +1,4 @@
-from .cli import Step, Runner, Context, ContextInfo
+from .cli import Step, Runner, Context
 from .registry import Device, DeviceRegistry
 from typing import Optional
 
