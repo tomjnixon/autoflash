@@ -3,6 +3,7 @@ name = "autoflash"
 version = "0.1.0"
 description = "automate installation of openwrt"
 authors = ["Thomas Nixon <tom@tomn.co.uk>"]
+license = "GPL-2.0-or-later"
 
 [tool.poetry.dependencies]
 python = "^3.8"
