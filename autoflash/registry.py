@@ -17,12 +17,12 @@ class Device:
         self.steps.append(step)
         return step
 
+
 class DeviceRegistry:
-    def __init__(self, base_package = None):
+    def __init__(self, base_package=None):
         self.base_package = base_package
         self.devices = []
 
     def add_from_module(self, module_name: str, attr_name: str = "device"):
         mod = importlib.import_module(module_name, self.base_package)
         self.devices.append(getattr(mod, attr_name))
-
