@@ -14,9 +14,8 @@ import inspect
 from dataclasses import dataclass
 import argparse
 from argparse import ArgumentParser, Namespace
-from . import Context
 from .exceptions import UserError
-from .registry import DeviceRegistry, Device
+from .registry import Context, DeviceRegistry, Device
 
 
 @dataclass

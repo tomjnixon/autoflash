@@ -1,6 +1,11 @@
 from typing import List, Callable
 import importlib
 
+
+class Context:
+    """Identifies a class as being used as a context"""
+
+
 class Device:
     def __init__(self, architecture: str, name: str):
         self.architecture = architecture

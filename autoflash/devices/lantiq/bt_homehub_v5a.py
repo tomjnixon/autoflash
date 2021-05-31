@@ -1,5 +1,5 @@
 from ...registry import Device
-from ... import Serial, Network, do_sysupgrade_ssh, wait_for_ssh
+from ... import Serial, Network
 from ...dnsmasq import Dnsmasq
 
 device = Device("lantiq", "bt_homehub-v5a")

@@ -1,6 +1,7 @@
 from ...registry import Device
-from ... import Serial, Network, do_sysupgrade_ssh, wait_for_ssh
+from ... import Serial, Network
 from ...dnsmasq import Dnsmasq
+from ...ssh import do_sysupgrade_ssh, wait_for_ssh
 
 device = Device("realtek", "zyxel_gs1900-8hp-v2")
 
