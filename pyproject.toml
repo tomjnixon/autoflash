@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "autoflash"
+version = "0.1.0"
+description = "automate installation of openwrt"
+authors = ["Thomas Nixon <tom@tomn.co.uk>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pyserial = "^3.5"
+"pyroute2.ndb" = "^0.6.3"
+pyroute2 = "^0.6.3"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.812"
+pytest = "^6.2.4"
+black = "^21.5b2"
+flake8 = "^3.9.2"
+flake8-black = "^0.2.1"
+
+[tool.poetry.scripts]
+autoflash = "autoflash.cli:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = "autoflash"
