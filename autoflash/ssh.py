@@ -24,6 +24,8 @@ def wait_for_ssh(address):
 
 
 def do_sysupgrade_ssh(address, sysupgrade_fname, options="-v"):
+    logger = logging.getLogger("ssh")
+
     ssh_args = (
         "-Fnone -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no".split()
     )
@@ -38,4 +40,24 @@ def do_sysupgrade_ssh(address, sysupgrade_fname, options="-v"):
     ]
     command = " && ".join(commands)
     with open(sysupgrade_fname, "rb") as f:
-        subprocess.check_call(["ssh", *ssh_args, f"root@{address}", command], stdin=f)
+        args = ["ssh", *ssh_args, f"root@{address}", command]
+        proc = subprocess.Popen(
+            args,
+            stdin=f,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+
+        # normally sysupgrade will close the ssh shell, causing ssh to fail;
+        # detect this and don't raise an error even if ssh exits non-zeroly
+        lines = []
+        while line := proc.stdout.readline():
+            lines.append(line)
+            logger.info(line.strip())
+        rc = proc.wait()
+
+        commencing_str = b"Commencing upgrade. Closing all shell sessions"
+        has_commencing = any(commencing_str in line for line in lines)
+
+        if rc != 0 and not has_commencing:
+            raise Exception("ssh failed")
