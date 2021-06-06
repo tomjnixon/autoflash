@@ -79,6 +79,9 @@ def ensure_ipv4(ifname, ip, prefixlen, vlan=None):
 
 
 def ensure_up(ifname, vlan):
+    if vlan is not None:
+        ensure_up(ifname, None)
+
     ifname = format_ifname(ifname, vlan)
 
     info = get_if_info(ifname, run(["link", "show", ifname]))
