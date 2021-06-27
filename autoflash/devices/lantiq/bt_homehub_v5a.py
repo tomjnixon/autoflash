@@ -15,7 +15,7 @@ def get_boot_console(serial: Serial):
 
 
 @device.register_step
-def boot(serial: Serial, network: Network, initramfs: str):
+def boot(serial: Serial, network: Network, initramfs: str, failsafe: bool = False):
     serial.setup(115200)
     get_boot_console(serial)
 
@@ -28,6 +28,10 @@ def boot(serial: Serial, network: Network, initramfs: str):
             b"bootm 0x81000000\n"
         )
         serial.wait_for(b"done$")
+
+    if failsafe:
+        serial.wait_for(b"Press the \[f\] key and hit \[enter\] to enter failsafe mode")
+        serial.write(b"f\n")
 
 
 @device.register_step
