@@ -31,7 +31,9 @@ def boot(serial: Serial, network: Network, initramfs: str, failsafe: bool = Fals
         serial.wait_for(b"done$")
 
     if failsafe:
-        serial.wait_for(b"Press the \[f\] key and hit \[enter\] to enter failsafe mode")
+        serial.wait_for(
+            b"Press the \\[f\\] key and hit \\[enter\\] to enter failsafe mode"
+        )
         serial.write(b"f\n")
 
 
