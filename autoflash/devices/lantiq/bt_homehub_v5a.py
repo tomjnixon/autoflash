@@ -24,8 +24,8 @@ def boot(serial: Serial, network: Network, initramfs: str, failsafe: bool = Fals
         serial.write(
             b"setenv ipaddr 192.168.1.1;"
             b"setenv serverip 192.168.1.2;"
-            b"tftpboot 0x81000000 initramfs.bin;"
-            b"bootm 0x81000000\n"
+            b"tftpboot 0x84000000 initramfs.bin;"
+            b"bootm 0x84000000\n"
         )
         serial.wait_for(b"done$")
 
