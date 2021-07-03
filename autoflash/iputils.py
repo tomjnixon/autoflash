@@ -2,8 +2,11 @@ import subprocess
 import json
 
 
-def run(cmd):
-    output = subprocess.check_output(["ip", "-j"] + cmd)
+def run(cmd, netns=None):
+    cmd = ["ip", "-j"] + cmd
+    if netns is not None:
+        cmd = ["ip", "netns", "exec", netns] + cmd
+    output = subprocess.check_output(cmd)
     if output:
         return json.loads(output)
     else:
@@ -92,8 +95,13 @@ def ensure_up(ifname, vlan):
 
 
 def make_netns(name, interfaces):
-    run(["netns", "add", name])
-    for interface in interfaces:
+    current_netns = [info["name"] for info in run(["netns", "list"])]
+    if name not in current_netns:
+        run(["netns", "add", name])
+
+    current_interfaces = [info["ifname"] for info in run(["link"], netns=name)]
+
+    for interface in set(interfaces) - set(current_interfaces):
         run(["link", "set", interface, "netns", name])
 
 
