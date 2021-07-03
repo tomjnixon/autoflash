@@ -35,10 +35,14 @@ def do_sysupgrade_ssh(address, sysupgrade_fname, options="-v"):
     fname = "/tmp/sysupgrade.bin"
     commands = [
         f"cat > {fname}",
-        f"echo '{checksum}  {fname}' | sha256sum -c > /dev/null",
+        f'echo "{checksum}  {fname}" | sha256sum -c > /dev/null',
         f"sysupgrade {options} {fname}",
     ]
     command = " && ".join(commands)
+    # run in login shell so that sysupgrade sees the $FAILSAFE variable
+    # command must be 100% naturally single-quote free
+    command = f"exec $SHELL -l -c '{command}'"
+
     with open(sysupgrade_fname, "rb") as f:
         args = ["ssh", *ssh_args, f"root@{address}", command]
         proc = subprocess.Popen(
