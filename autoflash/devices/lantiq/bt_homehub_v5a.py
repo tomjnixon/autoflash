@@ -1,6 +1,7 @@
 from ...registry import Device
 from ... import Serial, Network
 from ...dnsmasq import Dnsmasq
+from ...ssh import do_sysupgrade_ssh, wait_for_ssh
 
 device = Device("lantiq", "bt_homehub-v5a")
 
@@ -32,6 +33,17 @@ def boot(serial: Serial, network: Network, initramfs: str, failsafe: bool = Fals
     if failsafe:
         serial.wait_for(b"Press the \[f\] key and hit \[enter\] to enter failsafe mode")
         serial.write(b"f\n")
+
+
+@device.register_step
+def sysupgrade(serial: Serial, network: Network, sysupgrade: str, options: str = "-v"):
+    network.setup_ipv4("192.168.1.2")
+    wait_for_ssh("192.168.1.1")
+    do_sysupgrade_ssh(
+        "192.168.1.1",
+        sysupgrade,
+        options=options,
+    )
 
 
 @device.register_step
