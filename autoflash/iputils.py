@@ -6,6 +6,8 @@ def run(cmd):
     output = subprocess.check_output(["ip", "-j"] + cmd)
     if output:
         return json.loads(output)
+    else:
+        return []
 
 
 def get_if_info(ifname, info):
