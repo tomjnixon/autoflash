@@ -38,7 +38,7 @@ def boot(serial: Serial, network: Network, initramfs: str, failsafe: bool = Fals
 
 
 @device.register_step
-def sysupgrade(serial: Serial, network: Network, sysupgrade: str, options: str = "-v"):
+def sysupgrade(network: Network, sysupgrade: str, options: str = "-v"):
     network.setup_ipv4("192.168.1.2")
     wait_for_ssh("192.168.1.1")
     do_sysupgrade_ssh(
