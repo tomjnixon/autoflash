@@ -64,9 +64,10 @@ class Dnsmasq:
         return self
 
     def __exit__(self, *exc):
-        if self.tmpdir is not None:
-            self.tmpdir.cleanup()
 
         if self.process is not None:
             self.process.kill()
             self.process.wait()
+
+        if self.tmpdir is not None:
+            self.tmpdir.cleanup()
