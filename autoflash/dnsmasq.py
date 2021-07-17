@@ -6,6 +6,59 @@ import subprocess
 import logging
 import time
 import getpass
+import threading
+from queue import Queue
+import os
+
+responder_script = """#!/bin/bash
+fifo="{fifo}"
+
+(
+    for arg in "$@"; do
+        echo "arg $arg"
+    done
+
+    env | grep ^DNSMASQ | while read var; do
+        echo "var $var"
+    done
+
+    echo end
+) >> $fifo
+"""
+
+
+class ReaderThread(threading.Thread):
+    def __init__(self, fifo_path, queue):
+        self.fifo_path = fifo_path
+        self.queue = queue
+
+        super().__init__()
+
+    def run(self):
+        while True:
+            with open(self.fifo_path, "r") as f:
+                contents = f.read()
+                args = []
+                variables = {}
+                for line in contents.splitlines(False):
+                    cmd, sep, rest = line.partition(" ")
+
+                    if cmd == "quit":
+                        return
+                    elif cmd == "arg":
+                        args.append(rest)
+                    elif cmd == "var":
+                        name, value = rest.split("=", 1)
+                        variables[name] = value
+                    elif cmd == "end":
+                        self.queue.put((args.copy(), variables.copy()))
+                        args.clear()
+                        variables.clear()
+
+    def quit(self):
+        with open(self.fifo_path, "w") as f:
+            f.write("quit\n")
+        self.join()
 
 
 class Dnsmasq:
@@ -21,28 +74,52 @@ class Dnsmasq:
         if self.dhcp_boot is not None:
             assert self.dhcp is not None
 
+    def wait_for_tftp(self, filename=None):
+        while True:
+            args, env = self.queue.get()
+            if args[0] == "tftp":
+                size, address, path = args[1:]
+
+                if filename is None or self.tftp_root / filename == Path(path):
+                    return
+
     def __enter__(self):
         self.tmpdir = TemporaryDirectory("dnsmasq")
         pid_file = Path(self.tmpdir.name) / "dnsmasq.pid"
 
-        args = ["dnsmasq", "--port=0", f"--pid-file={pid_file}"]
-        args += [
+        self.fifo = Path(self.tmpdir.name) / "fifo"
+        os.mkfifo(self.fifo)
+
+        self.queue = Queue()
+        self.reader_thread = ReaderThread(self.fifo, self.queue)
+        self.reader_thread.start()
+
+        script_f = Path(self.tmpdir.name) / "script"
+        with open(script_f, "w") as f:
+            f.write(responder_script.format(fifo=self.fifo))
+        script_f.chmod(0o777)
+
+        args = [
+            "dnsmasq",
+            "--port=0",
+            f"--pid-file={pid_file}",
             "--keep-in-foreground",
             "--log-facility=-",
             "--user=" + getpass.getuser(),
+            f"--dhcp-script={script_f}",
         ]
 
         if self.dhcp is not None:
             args.append(f"--dhcp-range={self.dhcp}")
 
         if self.tftp:
-            tftp_root = Path(self.tmpdir.name) / "tftp"
+            self.tftp_root = Path(self.tmpdir.name) / "tftp"
             for name, src_path in self.tftp.items():
-                dest_path = tftp_root / name
+                dest_path = self.tftp_root / name
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(src_path, dest_path)
 
-            args.extend(["--enable-tftp", f"--tftp-root={tftp_root}"])
+            args.extend(["--enable-tftp", f"--tftp-root={self.tftp_root}"])
 
         if self.dhcp_boot:
             args.append(f"--dhcp-boot={self.dhcp_boot}")
@@ -64,6 +141,7 @@ class Dnsmasq:
         return self
 
     def __exit__(self, *exc):
+        self.reader_thread.quit()
 
         if self.process is not None:
             self.process.kill()
