@@ -64,3 +64,19 @@ def do_sysupgrade_ssh(address, sysupgrade_fname, options="-v"):
 
         if rc != 0 and not has_commencing:
             raise Exception("ssh failed")
+
+
+def run_command(address, args):
+    full_args = ["ssh", *base_args, address, *args]
+    result = subprocess.run(
+        full_args,
+        check=True,
+        capture_output=True,
+    )
+
+    return result.stdout
+
+
+def scp_file(address, remote_file, local_file):
+    full_args = ["scp", *base_args, f"{address}:{remote_file}", local_file]
+    subprocess.run(full_args, check=True)
