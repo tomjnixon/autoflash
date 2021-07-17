@@ -9,11 +9,17 @@ import getpass
 
 
 class Dnsmasq:
-    def __init__(self, tftp: dict = {}):
+    def __init__(self, tftp: dict = {}, dhcp=None, dhcp_boot=None, bootp=False):
         self.tftp = tftp
+        self.dhcp = dhcp
+        self.dhcp_boot = dhcp_boot
+        self.bootp = bootp
         self.tmpdir: Optional[TemporaryDirectory[str]] = None
         self.dnsmasq = None
         self.logger = logging.getLogger("dnsmasq")
+
+        if self.dhcp_boot is not None:
+            assert self.dhcp is not None
 
     def __enter__(self):
         self.tmpdir = TemporaryDirectory("dnsmasq")
@@ -26,6 +32,9 @@ class Dnsmasq:
             "--user=" + getpass.getuser(),
         ]
 
+        if self.dhcp is not None:
+            args.append(f"--dhcp-range={self.dhcp}")
+
         if self.tftp:
             tftp_root = Path(self.tmpdir.name) / "tftp"
             for name, src_path in self.tftp.items():
@@ -34,6 +43,12 @@ class Dnsmasq:
                 shutil.copy(src_path, dest_path)
 
             args.extend(["--enable-tftp", f"--tftp-root={tftp_root}"])
+
+        if self.dhcp_boot:
+            args.append(f"--dhcp-boot={self.dhcp_boot}")
+
+        if self.bootp:
+            args.append("--bootp-dynamic")
 
         self.logger.debug(f"running {' '.join(args)}")
         self.process = subprocess.Popen(args)
