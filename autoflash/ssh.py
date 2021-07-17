@@ -5,6 +5,11 @@ from .misc import sha256
 import subprocess
 
 
+logger = logging.getLogger("ssh")
+
+base_args = "-Fnone -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no".split()
+
+
 def wait_for_ssh(address):
     def can_connect():
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -12,10 +17,10 @@ def wait_for_ssh(address):
             try:
                 s.connect((address, 22))
             except socket.timeout:
-                logging.info(f"waiting for {address}:22")
+                logger.info(f"waiting for {address}:22")
                 return False
             except OSError:
-                logging.info(f"error connecting to {address}:22; waiting...")
+                logger.info(f"error connecting to {address}:22; waiting...")
                 return False
         return True
 
@@ -24,12 +29,6 @@ def wait_for_ssh(address):
 
 
 def do_sysupgrade_ssh(address, sysupgrade_fname, options="-v"):
-    logger = logging.getLogger("ssh")
-
-    ssh_args = (
-        "-Fnone -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no".split()
-    )
-
     checksum = sha256(sysupgrade_fname)
 
     fname = "/tmp/sysupgrade.bin"
@@ -44,7 +43,7 @@ def do_sysupgrade_ssh(address, sysupgrade_fname, options="-v"):
     command = f"exec $SHELL -l -c '{command}'"
 
     with open(sysupgrade_fname, "rb") as f:
-        args = ["ssh", *ssh_args, f"root@{address}", command]
+        args = ["ssh", *base_args, f"root@{address}", command]
         proc = subprocess.Popen(
             args,
             stdin=f,
